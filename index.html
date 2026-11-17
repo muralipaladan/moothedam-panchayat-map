@@ -370,7 +370,7 @@
         map.on('zoomend', refreshLabels);
         refreshLabels();
 
-        map.fitBounds(wardsLayer.getBounds().pad(0.06));
+        map.fitBounds(wardsLayer.getBounds(), { padding: [40, 40], maxZoom: 15 });
       })
       .catch(e => console.error('Wards/Boundary error:', e));
 
@@ -379,6 +379,7 @@
       .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(data => {
         L.geoJSON(data, {
+          interactive: false,  // no click / no popup / no block
           style: (f) => {
             // Skip drawing Moothedam again (already drawn from wards_final)
             if (f.properties.name === 'Moothedam') {
@@ -388,18 +389,10 @@
               color: '#e65100',
               weight: 2,
               fillColor: '#fff3e0',
-              fillOpacity: 0.08,
+              fillOpacity: 0.06,
               dashArray: '7 4',
-              opacity: 0.85
+              opacity: 0.75
             };
-          },
-          onEachFeature: (f, layer) => {
-            if (f.properties.name !== 'Moothedam') {
-              layer.bindTooltip(f.properties.name + ' Panchayat', {
-                sticky: true,
-                direction: 'top'
-              });
-            }
           }
         }).addTo(map);
       })
