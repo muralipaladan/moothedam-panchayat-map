@@ -21,10 +21,62 @@
       gap: 6px;
     }
     .topbar h1 {
-      font-size: 0.95rem; font-weight: 600; white-space: nowrap;
-      overflow: hidden; text-overflow: ellipsis; flex: 1;
+      font-size: 0.9rem; font-weight: 600; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; flex-shrink: 0;
+      max-width: 120px;
     }
     .topbar .sub { display: none; }
+
+    /* Search */
+    .search-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 0;
+      max-width: 320px;
+    }
+    .search-wrap input {
+      width: 100%;
+      height: 36px;
+      border: 1px solid #dadce0;
+      border-radius: 20px;
+      padding: 0 36px 0 14px;
+      font-size: 0.88rem;
+      outline: none;
+      background: #f1f3f4;
+    }
+    .search-wrap input:focus {
+      background: #fff;
+      border-color: #1a73e8;
+      box-shadow: 0 1px 6px rgba(26,115,232,0.25);
+    }
+    .search-wrap .clear-btn {
+      position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+      border: none; background: none; cursor: pointer; color: #5f6368;
+      font-size: 1.1rem; display: none; line-height: 1; padding: 4px;
+    }
+    .search-wrap.has-text .clear-btn { display: block; }
+    .search-results {
+      position: absolute; top: 42px; left: 0; right: 0;
+      background: #fff; border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      max-height: 280px; overflow-y: auto;
+      display: none; z-index: 1100;
+    }
+    .search-results.open { display: block; }
+    .search-item {
+      padding: 10px 12px; cursor: pointer;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 0.86rem;
+    }
+    .search-item:last-child { border-bottom: none; }
+    .search-item:hover, .search-item.active { background: #e8f0fe; }
+    .search-item .label { font-weight: 600; color: #202124; }
+    .search-item .meta { font-size: 0.78rem; color: #5f6368; margin-top: 2px; }
+    .search-item .tag {
+      display: inline-block; font-size: 0.68rem; padding: 1px 6px;
+      border-radius: 8px; background: #e8f0fe; color: #1a73e8; margin-right: 4px;
+    }
+    .search-empty { padding: 14px; color: #777; font-size: 0.85rem; text-align: center; }
 
     /* Icon buttons – Google Maps style */
     .icon-btn {
@@ -156,7 +208,12 @@
 <body>
   <!-- Compact top bar -->
   <div class="topbar">
-    <h1>മൂത്തേടം പഞ്ചായത്ത്</h1>
+    <h1>മൂത്തേടം</h1>
+    <div class="search-wrap" id="searchWrap">
+      <input type="search" id="searchInput" placeholder="Ward, member, house, place..." autocomplete="off" />
+      <button class="clear-btn" id="searchClear" title="Clear">×</button>
+      <div class="search-results" id="searchResults"></div>
+    </div>
     <div class="btn-group">
       <button class="icon-btn" id="btnNotes" title="Notes">📝</button>
       <button class="icon-btn" id="btnExport" title="Export notes">⬇️</button>
@@ -301,14 +358,18 @@
     }
 
     let wardsLayer;
+    let wardFeatures = [];  // for search
+
 
     // Load main boundary / wards
     fetch('wards_final.geojson')
       .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(data => {
+        wardFeatures = data.features || [];
         wardsLayer = L.geoJSON(data, {
           style: wardStyle,
           onEachFeature: (feature, layer) => {
+            feature._leafletLayer = layer;
             layer.bindPopup(buildPopup(feature, layer), { maxWidth: 280 });
             layer.on({
               mouseover: highlightFeature,
@@ -397,6 +458,177 @@
         }).addTo(map);
       })
       .catch(e => console.error('Neighbors error:', e));
+
+
+    // ===== Search (ward / member / house / place) =====
+    const searchInput = document.getElementById('searchInput');
+    const searchResults = document.getElementById('searchResults');
+    const searchWrap = document.getElementById('searchWrap');
+    const searchClear = document.getElementById('searchClear');
+    let searchTimer = null;
+    let activeIdx = -1;
+
+    function norm(s) {
+      return (s || '').toString().toLowerCase().trim();
+    }
+
+    function searchLocal(q) {
+      const results = [];
+      const nq = norm(q);
+      if (!nq) return results;
+
+      wardFeatures.forEach(f => {
+        const p = f.properties || {};
+        const layer = f._leafletLayer;
+        const center = layer ? layer.getBounds().getCenter() : null;
+        if (!center) return;
+
+        const fields = [
+          { key: 'ward', val: `Ward ${p.ward_no} ${p.ward_name || ''}`, tag: 'Ward' },
+          { key: 'member', val: p.member_ml || '', tag: 'Member' },
+          { key: 'member_en', val: p.member_en || '', tag: 'Member' },
+          { key: 'house', val: p.house || '', tag: 'House' },
+          { key: 'code', val: p.ward_code || '', tag: 'Code' },
+          { key: 'party', val: p.party_full || p.party || '', tag: 'Party' },
+        ];
+
+        for (const field of fields) {
+          if (field.val && norm(field.val).includes(nq)) {
+            results.push({
+              type: 'local',
+              tag: field.tag,
+              label: field.tag === 'Ward'
+                ? `Ward ${p.ward_no}: ${p.ward_name || ''}`
+                : (field.val),
+              meta: `Ward ${p.ward_no} · ${p.ward_name || ''} · ${p.member_ml || ''}`,
+              lat: center.lat,
+              lng: center.lng,
+              layer: layer,
+              feature: f
+            });
+            break; // one result per ward
+          }
+        }
+      });
+      return results;
+    }
+
+    async function searchPlaces(q) {
+      // Nominatim – limited to Moothedam area bbox
+      const bbox = '76.29,11.29,76.37,11.37'; // approx Moothedam
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q + ' Moothedam Malappuram')}&limit=5&viewbox=${bbox}&bounded=0`;
+      try {
+        const r = await fetch(url, { headers: { 'Accept-Language': 'en,ml' } });
+        const data = await r.json();
+        return (data || []).map(item => ({
+          type: 'place',
+          tag: 'Place',
+          label: item.display_name.split(',').slice(0, 3).join(','),
+          meta: item.type || item.class || 'place',
+          lat: parseFloat(item.lat),
+          lng: parseFloat(item.lon),
+          layer: null,
+          feature: null
+        }));
+      } catch (e) {
+        console.warn('Place search failed', e);
+        return [];
+      }
+    }
+
+    function renderSearchResults(items) {
+      activeIdx = -1;
+      if (!items.length) {
+        searchResults.innerHTML = '<div class="search-empty">No results found</div>';
+        searchResults.classList.add('open');
+        return;
+      }
+      searchResults.innerHTML = items.map((it, i) => `
+        <div class="search-item" data-idx="${i}">
+          <div class="label"><span class="tag">${it.tag}</span>${it.label}</div>
+          <div class="meta">${it.meta}</div>
+        </div>`).join('');
+      searchResults.classList.add('open');
+      searchResults.querySelectorAll('.search-item').forEach(el => {
+        el.onclick = () => selectResult(items[+el.dataset.idx]);
+      });
+      searchResults._items = items;
+    }
+
+    function selectResult(item) {
+      searchResults.classList.remove('open');
+      searchInput.value = item.label;
+      searchWrap.classList.add('has-text');
+      if (item.layer) {
+        map.fitBounds(item.layer.getBounds(), { padding: [50, 50], maxZoom: 16 });
+        item.layer.openPopup();
+      } else if (item.lat && item.lng) {
+        map.flyTo([item.lat, item.lng], 16);
+        L.popup().setLatLng([item.lat, item.lng])
+          .setContent(`<strong>${item.label}</strong><br><small>${item.meta}</small>`)
+          .openOn(map);
+      }
+    }
+
+    async function doSearch(q) {
+      if (!q || q.trim().length < 1) {
+        searchResults.classList.remove('open');
+        return;
+      }
+      const local = searchLocal(q);
+      // If local has good matches, show them first; also fetch places
+      const places = await searchPlaces(q);
+      // Prefer local, then places
+      const merged = [...local, ...places].slice(0, 12);
+      renderSearchResults(merged);
+    }
+
+    searchInput.addEventListener('input', () => {
+      const q = searchInput.value;
+      searchWrap.classList.toggle('has-text', q.length > 0);
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => doSearch(q), 280);
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+      const items = searchResults._items || [];
+      if (!searchResults.classList.contains('open') || !items.length) {
+        if (e.key === 'Enter') doSearch(searchInput.value);
+        return;
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        activeIdx = Math.min(activeIdx + 1, items.length - 1);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        activeIdx = Math.max(activeIdx - 1, 0);
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (activeIdx >= 0) selectResult(items[activeIdx]);
+        else if (items[0]) selectResult(items[0]);
+        return;
+      } else if (e.key === 'Escape') {
+        searchResults.classList.remove('open');
+        return;
+      } else return;
+
+      searchResults.querySelectorAll('.search-item').forEach((el, i) => {
+        el.classList.toggle('active', i === activeIdx);
+        if (i === activeIdx) el.scrollIntoView({ block: 'nearest' });
+      });
+    });
+
+    searchClear.onclick = () => {
+      searchInput.value = '';
+      searchWrap.classList.remove('has-text');
+      searchResults.classList.remove('open');
+      searchInput.focus();
+    };
+
+    document.addEventListener('click', (e) => {
+      if (!searchWrap.contains(e.target)) searchResults.classList.remove('open');
+    });
+
 
     window.navigateTo = function(lat, lng) {
       window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`, '_blank');
