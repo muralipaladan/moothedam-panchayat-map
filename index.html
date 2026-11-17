@@ -1,1 +1,144 @@
-PLACEHOLDER_WILL_BE_REPLACED
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Moothedam Grama Panchayat – Interactive Map | Aiswary V</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.css" />
+  <style>
+    :root { --primary: #0d47a1; --inc: #1a73e8; --iuml: #2e7d32; --cpim: #c62828; --ind: #6a1b9a; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: system-ui, sans-serif; }
+    #map { height: 100%; width: 100%; }
+    .header { position: absolute; top: 0; left: 0; right: 0; z-index: 1000; background: linear-gradient(135deg, #0d47a1, #1565c0); color: white; padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.3); flex-wrap: wrap; gap: 6px; }
+    .header h1 { font-size: 1.05rem; font-weight: 600; }
+    .header .sub { font-size: 0.75rem; opacity: 0.9; }
+    .header-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+    .btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: white; padding: 5px 10px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; }
+    .btn:hover, .btn.active { background: rgba(255,255,255,0.35); }
+    .popup-content { min-width: 220px; font-size: 0.9rem; }
+    .popup-content h3 { margin: 0 0 6px; color: var(--primary); font-size: 1.05rem; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; color: white; margin-bottom: 6px; }
+    .badge-inc { background: var(--inc); } .badge-iuml { background: var(--iuml); } .badge-cpim { background: var(--cpim); } .badge-ind { background: var(--ind); }
+    .popup-row { display: flex; justify-content: space-between; margin: 3px 0; }
+    .popup-row span:first-child { color: #555; }
+    .nav-btn { display: block; width: 100%; margin-top: 8px; padding: 8px; background: #0d47a1; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
+    .side-panel { position: absolute; top: 60px; right: 10px; z-index: 1000; width: 280px; max-width: 90vw; background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); max-height: calc(100vh - 80px); overflow-y: auto; display: none; }
+    .side-panel.open { display: block; }
+    .side-panel h2 { background: var(--primary); color: white; padding: 10px 14px; font-size: 1rem; border-radius: 12px 12px 0 0; }
+    .side-panel .body { padding: 12px; }
+    .note-item { border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px; margin-bottom: 10px; background: #fafafa; }
+    .note-item .meta { font-size: 0.75rem; color: #777; margin-bottom: 4px; }
+    .note-item textarea { width: 100%; border: 1px solid #ccc; border-radius: 4px; padding: 6px; font-size: 0.85rem; resize: vertical; min-height: 50px; }
+    .note-actions { display: flex; gap: 6px; margin-top: 6px; }
+    .note-actions button { flex: 1; padding: 5px; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8rem; }
+    .save-btn { background: #2e7d32; color: white; } .del-btn { background: #c62828; color: white; }
+    .add-pin-hint { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(13,71,161,0.95); color: white; padding: 10px 16px; border-radius: 20px; font-size: 0.85rem; display: none; box-shadow: 0 2px 10px rgba(0,0,0,0.3); }
+    .legend { position: absolute; bottom: 20px; left: 10px; z-index: 999; background: white; padding: 8px 12px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); font-size: 0.75rem; }
+    .legend div { margin: 3px 0; display: flex; align-items: center; gap: 6px; }
+    .legend i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+    @media (max-width: 600px) { .header h1 { font-size: 0.95rem; } .side-panel { top: 70px; right: 5px; left: 5px; width: auto; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>മൂതേടം ഗ്രാമപഞ്ചായത്ത് · Interactive Map</h1>
+      <div class="sub">Prepared for Aiswary V · Moothedam Panchayat Office</div>
+    </div>
+    <div class="header-btns">
+      <button class="btn" id="btnLocate">📍 My Location</button>
+      <button class="btn" id="btnAddPin">📌 Add Note/Pin</button>
+      <button class="btn" id="btnNotes">📝 Notes</button>
+      <button class="btn" id="btnExport">⬇️ Export</button>
+      <button class="btn" id="btnImport">⬆️ Import</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" />
+    </div>
+  </div>
+  <div id="map"></div>
+  <div class="add-pin-hint" id="pinHint">Tap on the map to place a pin & add note</div>
+  <div class="side-panel" id="notesPanel">
+    <h2>📌 Saved Notes / Pins</h2>
+    <div class="body" id="notesList"><p style="color:#777;font-size:0.85rem">No notes yet. Use “Add Note/Pin”.</p></div>
+  </div>
+  <div class="legend">
+    <strong>Wards by Party</strong>
+    <div><i style="background:#1a73e8"></i> INC</div>
+    <div><i style="background:#2e7d32"></i> IUML</div>
+    <div><i style="background:#c62828"></i> CPI(M)</div>
+    <div><i style="background:#6a1b9a"></i> Independent</div>
+    <div><i style="background:#e65100"></i> Neighbouring Panchayats</div>
+    <div><i style="background:#0d47a1"></i> Moothedam Boundary</div>
+  </div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet.locatecontrol@0.79.0/dist/L.Control.Locate.min.js"></script>
+  <script>
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+    const googleRoad = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', { maxZoom: 20, attribution: '© Google' });
+    const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', { maxZoom: 20, attribution: '© Google' });
+    const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: '© Esri' });
+    const map = L.map('map', { center: [11.333, 76.326], zoom: 13, layers: [googleHybrid], zoomControl: false });
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.control.layers({ "Google Hybrid": googleHybrid, "Google Road": googleRoad, "OpenStreetMap": osm, "Esri Satellite": esriSat }, null, { position: 'topright' }).addTo(map);
+    const locateControl = L.control.locate({ position: 'bottomright', strings: { title: "Show my location" }, locateOptions: { enableHighAccuracy: true, maxZoom: 16 }, flyTo: true, showPopup: false, markerStyle: { color: '#1a73e8', fillColor: '#4285f4' }, circleStyle: { color: '#1a73e8', fillColor: '#4285f4', fillOpacity: 0.15 } }).addTo(map);
+    document.getElementById('btnLocate').onclick = () => locateControl.start();
+    function partyColor(party) { if (party === 'INC') return '#1a73e8'; if (party === 'IUML') return '#2e7d32'; if (party === 'CPI(M)') return '#c62828'; if (party === 'IND') return '#6a1b9a'; return '#607d8b'; }
+    function wardStyle(feature) { const p = feature.properties.party; return { fillColor: partyColor(p), weight: 2, opacity: 1, color: '#ffffff', fillOpacity: 0.45 }; }
+    function highlightFeature(e) { const layer = e.target; layer.setStyle({ weight: 3, color: '#ffeb3b', fillOpacity: 0.75 }); layer.bringToFront(); }
+    function resetHighlight(e) { wardsLayer.resetStyle(e.target); }
+    let wardsLayer;
+    // Data will be loaded from geojson files once uploaded
+    fetch('moothedam_wards.geojson').then(r => r.json()).then(data => {
+      wardsLayer = L.geoJSON(data, { style: wardStyle, onEachFeature: (feature, layer) => {
+        const p = feature.properties;
+        const badgeClass = p.party === 'INC' ? 'badge-inc' : p.party === 'IUML' ? 'badge-iuml' : p.party === 'CPI(M)' ? 'badge-cpim' : 'badge-ind';
+        const html = `<div class="popup-content"><h3>Ward ${p.ward_no}: ${p.ward_name}</h3><span class="badge ${badgeClass}">${p.party_full}</span><div class="popup-row"><span>Member</span><strong>${p.member_ml}</strong></div><div class="popup-row"><span></span><small>${p.member_en}</small></div><div class="popup-row"><span>Age / Gender</span><span>${p.age}, ${p.gender}</span></div><div class="popup-row"><span>House</span><span>${p.house}</span></div><div class="popup-row"><span>Symbol</span><span>${p.symbol}</span></div><div class="popup-row"><span>Ward Code</span><span>${p.ward_code}</span></div><div class="popup-row"><span>Population</span><span>${p.total_pop} (M:${p.males} F:${p.females})</span></div><button class="nav-btn" onclick="navigateTo(${layer.getBounds().getCenter().lat}, ${layer.getBounds().getCenter().lng}, '${p.ward_name}')">🧭 Navigate here (Google Maps)</button></div>`;
+        layer.bindPopup(html, { maxWidth: 280 });
+        layer.on({ mouseover: highlightFeature, mouseout: resetHighlight, click: () => layer.openPopup() });
+      }}).addTo(map);
+      map.fitBounds(wardsLayer.getBounds().pad(0.05));
+    }).catch(e => console.log('Wards load:', e));
+    fetch('neighbors.geojson').then(r => r.json()).then(data => {
+      L.geoJSON(data, { style: (f) => {
+        if (f.properties.name === 'Moothedam') return { color: '#0d47a1', weight: 4, fill: false, opacity: 0.9 };
+        return { color: '#e65100', weight: 2.5, fillColor: '#fff3e0', fillOpacity: 0.12, dashArray: '8 5', opacity: 0.85 };
+      }, onEachFeature: (f, layer) => layer.bindTooltip(f.properties.name + ' Panchayat', { sticky: true }) }).addTo(map);
+    }).catch(e => console.log('Neighbors load:', e));
+    window.navigateTo = function(lat, lng, label) { window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`, '_blank'); };
+    const STORAGE_KEY = 'moothedam_notes_v1';
+    let notes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    let noteMarkers = [];
+    let addPinMode = false;
+    let tempMarker = null;
+    function saveNotes() { localStorage.setItem(STORAGE_KEY, JSON.stringify(notes)); renderNotesList(); }
+    function renderNoteMarkers() {
+      noteMarkers.forEach(m => map.removeLayer(m)); noteMarkers = [];
+      notes.forEach((n, idx) => {
+        const m = L.marker([n.lat, n.lng], { draggable: true, icon: L.divIcon({ className: '', html: `<div style="background:#c62828;color:white;width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.4)"><span style="transform:rotate(45deg);font-size:14px">📌</span></div>`, iconSize: [28, 28], iconAnchor: [14, 28] }) }).addTo(map);
+        m.bindPopup(`<strong>${n.title || 'Note'}</strong><br>${n.text || ''}<br><small>${n.lat.toFixed(5)}, ${n.lng.toFixed(5)}</small><br><button onclick="editNote(${idx})" style="margin-top:6px;padding:4px 8px">Edit</button> <button onclick="deleteNote(${idx})" style="margin-top:6px;padding:4px 8px;background:#c62828;color:white;border:none;border-radius:4px">Delete</button>`);
+        m.on('dragend', (e) => { const pos = e.target.getLatLng(); notes[idx].lat = pos.lat; notes[idx].lng = pos.lng; saveNotes(); });
+        noteMarkers.push(m);
+      });
+    }
+    function renderNotesList() {
+      const list = document.getElementById('notesList');
+      if (notes.length === 0) { list.innerHTML = '<p style="color:#777;font-size:0.85rem">No notes yet. Use “Add Note/Pin”.</p>'; return; }
+      list.innerHTML = notes.map((n, i) => `<div class="note-item"><div class="meta">${n.lat.toFixed(5)}, ${n.lng.toFixed(5)} · ${new Date(n.ts).toLocaleString()}</div><input type="text" value="${(n.title || '').replace(/"/g, '"')}" placeholder="Title" onchange="updateNoteTitle(${i}, this.value)" style="width:100%;margin-bottom:4px;padding:4px;border:1px solid #ccc;border-radius:4px" /><textarea onchange="updateNoteText(${i}, this.value)">${n.text || ''}</textarea><div class="note-actions"><button class="save-btn" onclick="flyToNote(${i})">Go to</button><button class="del-btn" onclick="deleteNote(${i})">Delete</button></div></div>`).join('');
+    }
+    window.updateNoteTitle = (i, v) => { notes[i].title = v; saveNotes(); };
+    window.updateNoteText = (i, v) => { notes[i].text = v; saveNotes(); };
+    window.flyToNote = (i) => { map.flyTo([notes[i].lat, notes[i].lng], 16); };
+    window.deleteNote = (i) => { if (confirm('Delete this note?')) { notes.splice(i, 1); saveNotes(); renderNoteMarkers(); } };
+    window.editNote = (i) => { document.getElementById('notesPanel').classList.add('open'); renderNotesList(); };
+    document.getElementById('btnAddPin').onclick = () => { addPinMode = !addPinMode; document.getElementById('btnAddPin').classList.toggle('active', addPinMode); document.getElementById('pinHint').style.display = addPinMode ? 'block' : 'none'; if (!addPinMode && tempMarker) { map.removeLayer(tempMarker); tempMarker = null; } };
+    map.on('click', (e) => { if (!addPinMode) return; if (tempMarker) map.removeLayer(tempMarker); tempMarker = L.marker(e.latlng, { draggable: true }).addTo(map); const title = prompt('Note title (optional):', ''); const text = prompt('Note text:', ''); notes.push({ lat: e.latlng.lat, lng: e.latlng.lng, title: title || 'Pin', text: text || '', ts: Date.now() }); saveNotes(); renderNoteMarkers(); addPinMode = false; document.getElementById('btnAddPin').classList.remove('active'); document.getElementById('pinHint').style.display = 'none'; if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; } });
+    document.getElementById('btnNotes').onclick = () => { document.getElementById('notesPanel').classList.toggle('open'); renderNotesList(); };
+    document.getElementById('btnExport').onclick = () => { const blob = new Blob([JSON.stringify(notes, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `moothedam_notes_${new Date().toISOString().slice(0,10)}.json`; a.click(); };
+    document.getElementById('btnImport').onclick = () => document.getElementById('importFile').click();
+    document.getElementById('importFile').onchange = (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (ev) => { try { const imported = JSON.parse(ev.target.result); if (Array.isArray(imported)) { notes = imported; saveNotes(); renderNoteMarkers(); alert('Imported ' + notes.length + ' notes successfully!'); } else alert('Invalid file format'); } catch (err) { alert('Error reading file'); } }; reader.readAsText(file); };
+    renderNoteMarkers(); renderNotesList();
+    L.control.attribution({ position: 'bottomleft' }).addTo(map);
+  </script>
+</body>
+</html>
