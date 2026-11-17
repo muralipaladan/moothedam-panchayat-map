@@ -439,7 +439,7 @@
         map.on('zoomend', refreshLabels);
         refreshLabels();
 
-        map.fitBounds(wardsLayer.getBounds(), { padding: [40, 40], maxZoom: 15 });
+        map.fitBounds(wardsLayer.getBounds(), { padding: [36, 36], maxZoom: 14 });
       })
       .catch(e => console.error('Wards/Boundary error:', e));
 
