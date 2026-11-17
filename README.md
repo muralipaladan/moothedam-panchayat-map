@@ -2,27 +2,44 @@
 
 **Prepared for Aiswary V · Moothedam Panchayat Office**
 
-## Live Map
-After enabling GitHub Pages (Settings → Pages → Source: Deploy from a branch → main → /root), the map will be available at:
+## Live Map (after enabling Pages + uploading data)
+https://muralipaladan.github.io/moothedam-panchayat-map/
 
-**https://muralipaladan.github.io/moothedam-panchayat-map/**
+## Color scheme (smart complementary design)
+- **Wards**: Party-coloured fills (semi-transparent)
+  - INC → Blue `#1a73e8`
+  - IUML → Green `#2e7d32`
+  - CPI(M) → Red `#c62828`
+  - Independent → Purple `#6a1b9a`
+  - White border for clear separation
+- **Moothedam Panchayat boundary**: Strong dark blue outline `#0d47a1` (weight 4)
+- **Neighbouring panchayats** (Chungathara, Edakkara, Karulai, Vazhikkadavu): Warm orange dashed outline `#e65100` + light cream fill – complementary to the cool party colours so boundaries stand out clearly without clashing.
 
-## Features
-- Google Hybrid / Google Road / OSM / Esri Satellite base maps
-- 18 Moothedam wards coloured by party (INC / IUML / CPI(M) / Independent)
-- Click/tap ward → Member name (ML + EN), party, age, gender, house, symbol, ward code, population
-- Neighbouring panchayat boundaries (Chungathara, Edakkara, Karulai, Vazhikkadavu)
-- Live GPS blue dot on mobile
-- Navigate button → Google Maps directions
-- Add Pin + Notes (localStorage, export/import JSON, edit/delete)
+## How to make it fully work
+1. **Enable GitHub Pages**
+   - Repo → Settings → Pages
+   - Source: Deploy from a branch
+   - Branch: `main` / Folder: `/ (root)`
+   - Save
 
-## How to enable Pages
-1. Go to the repository Settings → Pages
-2. Under "Build and deployment" → Source: Deploy from a branch
-3. Branch: `main` / folder: `/ (root)`
-4. Save. Wait 1-2 minutes.
-5. Open https://muralipaladan.github.io/moothedam-panchayat-map/
+2. **Upload the two GeoJSON files** (required for wards & neighbours to appear)
+   - Go to the repo main page
+   - Click **Add file → Upload files**
+   - Upload:
+     - `moothedam_wards.geojson`
+     - `neighbors.geojson`
+   - Commit directly to `main`
 
-The map HTML is already in the repo. The GeoJSON data files need to be uploaded (or the map can be made self-contained). Contact for full data push if needed.
+   (These files are ready in the conversation artifacts / previous generation. If you need me to re-provide the exact files, say so.)
 
-Made with Leaflet.
+3. Wait 1–2 minutes after Pages is enabled + files uploaded.
+
+## Features already in the map
+- Google Hybrid / Google Road / OSM / Esri Satellite base layers
+- Click any ward → member name (Malayalam + English), party, age, gender, house, symbol, ward code, population
+- Live GPS blue dot (mobile)
+- Navigate to ward via Google Maps
+- Add / edit / delete / export / import pins & notes (localStorage)
+- Responsive mobile-friendly UI
+
+Made with Leaflet for Aiswary V.
