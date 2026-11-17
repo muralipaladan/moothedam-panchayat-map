@@ -179,75 +179,122 @@
 
     document.getElementById('btnLocate').onclick = () => locateControl.start();
 
-    // Boundary colors cycling (no fill)
+    // Colors for individual wards (when ward polygons with ward_no exist)
     const boundaryColors = ['#e53935', '#1e88e5', '#43a047', '#8e24aa', '#fb8c00', '#00acc1', '#d81b60', '#5e35b1'];
 
-    function wardStyle(feature, index) {
-      const color = boundaryColors[feature.properties.ward_no % boundaryColors.length];
+    function wardStyle(feature) {
+      const p = feature.properties || {};
+      // Individual ward with ward_no → colored boundary
+      if (p.ward_no != null) {
+        const color = boundaryColors[Number(p.ward_no) % boundaryColors.length];
+        return {
+          fillColor: color,
+          fillOpacity: 0.12,
+          weight: 2.5,
+          opacity: 0.95,
+          color: color
+        };
+      }
+      // Whole panchayat boundary (current data)
       return {
-        fillColor: color,
-        fillOpacity: 0,          // 100% transparent fill
-        weight: 2.5,
-        opacity: 0.95,
-        color: color
+        color: '#0d47a1',
+        weight: 3.5,
+        fillColor: '#1a73e8',
+        fillOpacity: 0.08,
+        opacity: 0.95
       };
     }
 
     function highlightFeature(e) {
       const layer = e.target;
-      layer.setStyle({ weight: 4, opacity: 1 });
+      layer.setStyle({ weight: 5, opacity: 1 });
       layer.bringToFront();
     }
     function resetHighlight(e) {
       if (wardsLayer) wardsLayer.resetStyle(e.target);
     }
 
+    function buildPopup(feature, layer) {
+      const p = feature.properties || {};
+      // Case 1: Full ward member data available
+      if (p.ward_no != null || p.ward_name || p.member_ml || p.party) {
+        const badgeClass = p.party === 'INC' ? 'badge-inc' :
+                           p.party === 'IUML' ? 'badge-iuml' :
+                           p.party === 'CPI(M)' ? 'badge-cpim' : 'badge-ind';
+        return `<div class="popup-content">
+          <h3>Ward ${p.ward_no || ''}: ${p.ward_name || p.name || ''}</h3>
+          <span class="badge ${badgeClass}">${p.party_full || p.party || ''}</span>
+          <div class="popup-row"><span>Member</span><strong>${p.member_ml || ''}</strong></div>
+          <div class="popup-row"><span></span><small>${p.member_en || ''}</small></div>
+          <div class="popup-row"><span>Age / Gender</span><span>${p.age || ''} ${p.gender ? ', ' + p.gender : ''}</span></div>
+          <div class="popup-row"><span>House</span><span>${p.house || ''}</span></div>
+          <div class="popup-row"><span>Symbol</span><span>${p.symbol || ''}</span></div>
+          <div class="popup-row"><span>Ward Code</span><span>${p.ward_code || ''}</span></div>
+          <div class="popup-row"><span>Population</span><span>${p.total_pop || 0} (M:${p.males || 0} F:${p.females || 0})</span></div>
+          <button class="nav-btn" onclick="navigateTo(${layer.getBounds().getCenter().lat}, ${layer.getBounds().getCenter().lng})">🧭 Navigate</button>
+        </div>`;
+      }
+      // Case 2: Only panchayat boundary (current situation)
+      return `<div class="popup-content">
+        <h3>${p.name || 'Moothedam'} Grama Panchayat</h3>
+        <div class="popup-row"><span>District</span><strong>Malappuram</strong></div>
+        <div class="popup-row"><span>Block</span><strong>Nilambur</strong></div>
+        <div class="popup-row"><span>Type</span><span>Grama Panchayat</span></div>
+        <p style="margin-top:8px;font-size:0.8rem;color:#666">
+          Individual ward polygons + member details are not yet loaded.<br>
+          Add a proper wards GeoJSON with ward_no, member names etc. to enable full details.
+        </p>
+        <button class="nav-btn" onclick="navigateTo(${layer.getBounds().getCenter().lat}, ${layer.getBounds().getCenter().lng})">🧭 Navigate</button>
+      </div>`;
+    }
+
     let wardsLayer;
 
-    // Load wards – transparent fill, colored boundaries
+    // Load main boundary / wards
     fetch('wards_final.geojson')
       .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(data => {
         wardsLayer = L.geoJSON(data, {
-          style: (feature) => wardStyle(feature),
+          style: wardStyle,
           onEachFeature: (feature, layer) => {
-            const p = feature.properties;
-            const badgeClass = p.party === 'INC' ? 'badge-inc' :
-                               p.party === 'IUML' ? 'badge-iuml' :
-                               p.party === 'CPI(M)' ? 'badge-cpim' : 'badge-ind';
-            const html = `<div class="popup-content">
-              <h3>Ward ${p.ward_no}: ${p.ward_name}</h3>
-              <span class="badge ${badgeClass}">${p.party_full || p.party || ''}</span>
-              <div class="popup-row"><span>Member</span><strong>${p.member_ml || ''}</strong></div>
-              <div class="popup-row"><span></span><small>${p.member_en || ''}</small></div>
-              <div class="popup-row"><span>Age / Gender</span><span>${p.age || ''}, ${p.gender || ''}</span></div>
-              <div class="popup-row"><span>House</span><span>${p.house || ''}</span></div>
-              <div class="popup-row"><span>Symbol</span><span>${p.symbol || ''}</span></div>
-              <div class="popup-row"><span>Ward Code</span><span>${p.ward_code || ''}</span></div>
-              <div class="popup-row"><span>Population</span><span>${p.total_pop || 0} (M:${p.males || 0} F:${p.females || 0})</span></div>
-              <button class="nav-btn" onclick="navigateTo(${layer.getBounds().getCenter().lat}, ${layer.getBounds().getCenter().lng}, '${p.ward_name}')">🧭 Navigate</button>
-            </div>`;
-            layer.bindPopup(html, { maxWidth: 260 });
-            layer.on({ mouseover: highlightFeature, mouseout: resetHighlight, click: () => layer.openPopup() });
+            layer.bindPopup(buildPopup(feature, layer), { maxWidth: 280 });
+            layer.on({
+              mouseover: highlightFeature,
+              mouseout: resetHighlight,
+              click: () => layer.openPopup()
+            });
           }
         }).addTo(map);
-        map.fitBounds(wardsLayer.getBounds().pad(0.04));
+        map.fitBounds(wardsLayer.getBounds().pad(0.06));
       })
-      .catch(e => console.error('Wards error:', e));
+      .catch(e => console.error('Wards/Boundary error:', e));
 
-    // Neighbours
+    // Neighbouring panchayats
     fetch('neighbors_final.geojson')
       .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
       .then(data => {
         L.geoJSON(data, {
           style: (f) => {
+            // Skip drawing Moothedam again (already drawn from wards_final)
             if (f.properties.name === 'Moothedam') {
-              return { color: '#0d47a1', weight: 3.5, fill: false, opacity: 0.95 };
+              return { color: '#0d47a1', weight: 0, fill: false, opacity: 0 };
             }
-            return { color: '#e65100', weight: 2, fillColor: '#fff3e0', fillOpacity: 0.08, dashArray: '7 4', opacity: 0.85 };
+            return {
+              color: '#e65100',
+              weight: 2,
+              fillColor: '#fff3e0',
+              fillOpacity: 0.08,
+              dashArray: '7 4',
+              opacity: 0.85
+            };
           },
           onEachFeature: (f, layer) => {
-            layer.bindTooltip(f.properties.name + ' Panchayat', { sticky: true, direction: 'top' });
+            if (f.properties.name !== 'Moothedam') {
+              layer.bindTooltip(f.properties.name + ' Panchayat', {
+                sticky: true,
+                direction: 'top'
+              });
+            }
           }
         }).addTo(map);
       })

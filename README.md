@@ -2,44 +2,67 @@
 
 **Prepared for Aiswary V · Moothedam Panchayat Office**
 
-## Live Map (after enabling Pages + uploading data)
-https://muralipaladan.github.io/moothedam-panchayat-map/
+## What is included
 
-## Color scheme (smart complementary design)
-- **Wards**: Party-coloured fills (semi-transparent)
-  - INC → Blue `#1a73e8`
-  - IUML → Green `#2e7d32`
-  - CPI(M) → Red `#c62828`
-  - Independent → Purple `#6a1b9a`
-  - White border for clear separation
-- **Moothedam Panchayat boundary**: Strong dark blue outline `#0d47a1` (weight 4)
-- **Neighbouring panchayats** (Chungathara, Edakkara, Karulai, Vazhikkadavu): Warm orange dashed outline `#e65100` + light cream fill – complementary to the cool party colours so boundaries stand out clearly without clashing.
-
-## How to make it fully work
-1. **Enable GitHub Pages**
-   - Repo → Settings → Pages
-   - Source: Deploy from a branch
-   - Branch: `main` / Folder: `/ (root)`
-   - Save
-
-2. **Upload the two GeoJSON files** (required for wards & neighbours to appear)
-   - Go to the repo main page
-   - Click **Add file → Upload files**
-   - Upload:
-     - `moothedam_wards.geojson`
-     - `neighbors.geojson`
-   - Commit directly to `main`
-
-   (These files are ready in the conversation artifacts / previous generation. If you need me to re-provide the exact files, say so.)
-
-3. Wait 1–2 minutes after Pages is enabled + files uploaded.
-
-## Features already in the map
-- Google Hybrid / Google Road / OSM / Esri Satellite base layers
-- Click any ward → member name (Malayalam + English), party, age, gender, house, symbol, ward code, population
-- Live GPS blue dot (mobile)
+- **18 Ward polygons** (2024 Delimitation – official Kerala data)
+- **Neighbouring panchayats** outline (Chungathara, Edakkara, Karulai, Vazhikkadavu)
+- Base layers: Google Hybrid / Road, OpenStreetMap, Esri Satellite
+- Live GPS location
 - Navigate to ward via Google Maps
-- Add / edit / delete / export / import pins & notes (localStorage)
-- Responsive mobile-friendly UI
+- Pins & notes (add / edit / delete / export / import) – stored in browser
+- Mobile-friendly UI
 
-Made with Leaflet for Aiswary V.
+## Wards (18)
+
+| No | Ward Name        |
+|----|------------------|
+| 1  | Marathinkadav    |
+| 2  | Nellikkuth       |
+| 3  | Thalippadam      |
+| 4  | Kalkulam         |
+| 5  | Balamkulam       |
+| 6  | Karappuram       |
+| 7  | Payimpadam       |
+| 8  | Cholamunda       |
+| 9  | Vellaramunda     |
+| 10 | Palankara        |
+| 11 | Vattappadam      |
+| 12 | Kuttikkad        |
+| 13 | Nellipoil        |
+| 14 | Moothedam        |
+| 15 | Chamaparambu     |
+| 16 | Muppini          |
+| 17 | Maramvettichal   |
+| 18 | Chemmanthitta    |
+
+## Color scheme
+
+- Each ward has a distinct coloured boundary (cycling palette)
+- Neighbouring panchayats → orange dashed outline
+
+## Member details (optional)
+
+Ward polygons are ready. To show elected member info in the popup, add these properties to each feature in `wards_final.geojson`:
+
+- `party` / `party_full` (INC, IUML, CPI(M), Independent…)
+- `member_ml`, `member_en`
+- `age`, `gender`, `house`, `symbol`
+- `ward_code`, `total_pop`, `males`, `females`
+
+The map will automatically display them when present.
+
+## Deploy on GitHub Pages
+
+1. Upload the 3 files to repo root:
+   - `index.html`
+   - `wards_final.geojson`
+   - `neighbors_final.geojson`
+2. Settings → Pages → Deploy from branch `main` / root
+3. Wait 1–2 minutes
+
+## Data source
+
+Ward boundaries: Kerala Delimitation Commission 2024  
+(via https://wardmap.ksmart.live / Vonter/kerala-wards)
+
+Made with Leaflet.
