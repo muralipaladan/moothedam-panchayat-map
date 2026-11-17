@@ -238,7 +238,7 @@
     </button>
   </div>
 
-  <div class="add-pin-hint" id="pinHint">മാപ്പിൽ tap ചെയ്ത് pin വയ്ക്കുക</div>
+  <div class="add-pin-hint" id="pinHint">📌 Pin mode ON — map-ൽ tap ചെയ്ത് pin ഇടുക (Cancel: pin button വീണ്ടും press ചെയ്യുക)</div>
 
   <div class="side-panel" id="notesPanel">
     <h2>📌 Saved Notes / Pins</h2>
@@ -374,7 +374,15 @@
             layer.on({
               mouseover: highlightFeature,
               mouseout: resetHighlight,
-              click: () => layer.openPopup()
+              click: (e) => {
+                if (addPinMode) {
+                  // Place pin instead of opening ward popup
+                  L.DomEvent.stopPropagation(e);
+                  placePin(e.latlng);
+                  return;
+                }
+                layer.openPopup();
+              }
             });
           }
         }).addTo(map);
@@ -709,30 +717,40 @@
       renderNotesList();
     };
 
-    document.getElementById('btnAddPin').onclick = () => {
-      addPinMode = !addPinMode;
-      document.getElementById('btnAddPin').classList.toggle('active', addPinMode);
-      document.getElementById('pinHint').style.display = addPinMode ? 'block' : 'none';
-      if (!addPinMode && tempMarker) {
+    function setPinMode(on) {
+      addPinMode = on;
+      document.getElementById('btnAddPin').classList.toggle('active', on);
+      document.getElementById('pinHint').style.display = on ? 'block' : 'none';
+      map.getContainer().style.cursor = on ? 'crosshair' : '';
+      if (!on && tempMarker) {
         map.removeLayer(tempMarker); tempMarker = null;
       }
+    }
+
+    function placePin(latlng) {
+      if (!addPinMode) return;
+      const title = prompt('Note title (optional):', '');
+      // If user presses Cancel on title, still allow empty; only cancel pin if both cancelled awkwardly
+      const text = prompt('Note text (optional):', '');
+      notes.push({
+        lat: latlng.lat,
+        lng: latlng.lng,
+        title: (title != null && title !== '') ? title : 'Pin',
+        text: text || '',
+        ts: Date.now()
+      });
+      saveNotes();
+      renderNoteMarkers();
+      setPinMode(false);
+    }
+
+    document.getElementById('btnAddPin').onclick = () => {
+      setPinMode(!addPinMode);
     };
 
     map.on('click', e => {
       if (!addPinMode) return;
-      if (tempMarker) map.removeLayer(tempMarker);
-      tempMarker = L.marker(e.latlng, { draggable: true }).addTo(map);
-      const title = prompt('Note title (optional):', '');
-      const text = prompt('Note text:', '');
-      notes.push({
-        lat: e.latlng.lat, lng: e.latlng.lng,
-        title: title || 'Pin', text: text || '', ts: Date.now()
-      });
-      saveNotes(); renderNoteMarkers();
-      addPinMode = false;
-      document.getElementById('btnAddPin').classList.remove('active');
-      document.getElementById('pinHint').style.display = 'none';
-      if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+      placePin(e.latlng);
     });
 
     document.getElementById('btnNotes').onclick = () => {
