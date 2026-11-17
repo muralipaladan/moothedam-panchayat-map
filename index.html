@@ -86,57 +86,146 @@
     function partyColor(party) { if (party === 'INC') return '#1a73e8'; if (party === 'IUML') return '#2e7d32'; if (party === 'CPI(M)') return '#c62828'; if (party === 'IND') return '#6a1b9a'; return '#607d8b'; }
     function wardStyle(feature) { const p = feature.properties.party; return { fillColor: partyColor(p), weight: 2, opacity: 1, color: '#ffffff', fillOpacity: 0.45 }; }
     function highlightFeature(e) { const layer = e.target; layer.setStyle({ weight: 3, color: '#ffeb3b', fillOpacity: 0.75 }); layer.bringToFront(); }
-    function resetHighlight(e) { wardsLayer.resetStyle(e.target); }
+    function resetHighlight(e) { if (wardsLayer) wardsLayer.resetStyle(e.target); }
     let wardsLayer;
-    // Data will be loaded from geojson files once uploaded
-    fetch('moothedam_wards.geojson').then(r => r.json()).then(data => {
-      wardsLayer = L.geoJSON(data, { style: wardStyle, onEachFeature: (feature, layer) => {
-        const p = feature.properties;
-        const badgeClass = p.party === 'INC' ? 'badge-inc' : p.party === 'IUML' ? 'badge-iuml' : p.party === 'CPI(M)' ? 'badge-cpim' : 'badge-ind';
-        const html = `<div class="popup-content"><h3>Ward ${p.ward_no}: ${p.ward_name}</h3><span class="badge ${badgeClass}">${p.party_full}</span><div class="popup-row"><span>Member</span><strong>${p.member_ml}</strong></div><div class="popup-row"><span></span><small>${p.member_en}</small></div><div class="popup-row"><span>Age / Gender</span><span>${p.age}, ${p.gender}</span></div><div class="popup-row"><span>House</span><span>${p.house}</span></div><div class="popup-row"><span>Symbol</span><span>${p.symbol}</span></div><div class="popup-row"><span>Ward Code</span><span>${p.ward_code}</span></div><div class="popup-row"><span>Population</span><span>${p.total_pop} (M:${p.males} F:${p.females})</span></div><button class="nav-btn" onclick="navigateTo(${layer.getBounds().getCenter().lat}, ${layer.getBounds().getCenter().lng}, '${p.ward_name}')">🧭 Navigate here (Google Maps)</button></div>`;
-        layer.bindPopup(html, { maxWidth: 280 });
-        layer.on({ mouseover: highlightFeature, mouseout: resetHighlight, click: () => layer.openPopup() });
-      }}).addTo(map);
-      map.fitBounds(wardsLayer.getBounds().pad(0.05));
-    }).catch(e => console.log('Wards load:', e));
-    fetch('neighbors.geojson').then(r => r.json()).then(data => {
-      L.geoJSON(data, { style: (f) => {
-        if (f.properties.name === 'Moothedam') return { color: '#0d47a1', weight: 4, fill: false, opacity: 0.9 };
-        return { color: '#e65100', weight: 2.5, fillColor: '#fff3e0', fillOpacity: 0.12, dashArray: '8 5', opacity: 0.85 };
-      }, onEachFeature: (f, layer) => layer.bindTooltip(f.properties.name + ' Panchayat', { sticky: true }) }).addTo(map);
-    }).catch(e => console.log('Neighbors load:', e));
-    window.navigateTo = function(lat, lng, label) { window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`, '_blank'); };
+
+    // Correct filenames that exist in the repo
+    fetch('wards_final.geojson')
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(data => {
+        wardsLayer = L.geoJSON(data, {
+          style: wardStyle,
+          onEachFeature: (feature, layer) => {
+            const p = feature.properties;
+            const badgeClass = p.party === 'INC' ? 'badge-inc' : p.party === 'IUML' ? 'badge-iuml' : p.party === 'CPI(M)' ? 'badge-cpim' : 'badge-ind';
+            const html = `<div class="popup-content">
+              <h3>Ward ${p.ward_no}: ${p.ward_name}</h3>
+              <span class="badge ${badgeClass}">${p.party_full || p.party}</span>
+              <div class="popup-row"><span>Member</span><strong>${p.member_ml || ''}</strong></div>
+              <div class="popup-row"><span></span><small>${p.member_en || ''}</small></div>
+              <div class="popup-row"><span>Age / Gender</span><span>${p.age || ''}, ${p.gender || ''}</span></div>
+              <div class="popup-row"><span>House</span><span>${p.house || ''}</span></div>
+              <div class="popup-row"><span>Symbol</span><span>${p.symbol || ''}</span></div>
+              <div class="popup-row"><span>Ward Code</span><span>${p.ward_code || ''}</span></div>
+              <div class="popup-row"><span>Population</span><span>${p.total_pop || 0} (M:${p.males || 0} F:${p.females || 0})</span></div>
+              <button class="nav-btn" onclick="navigateTo(${layer.getBounds().getCenter().lat}, ${layer.getBounds().getCenter().lng}, '${p.ward_name}')">🧭 Navigate here (Google Maps)</button>
+            </div>`;
+            layer.bindPopup(html, { maxWidth: 280 });
+            layer.on({ mouseover: highlightFeature, mouseout: resetHighlight, click: () => layer.openPopup() });
+          }
+        }).addTo(map);
+        map.fitBounds(wardsLayer.getBounds().pad(0.05));
+      })
+      .catch(e => console.error('Wards load error:', e));
+
+    fetch('neighbors_final.geojson')
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(data => {
+        L.geoJSON(data, {
+          style: (f) => {
+            if (f.properties.name === 'Moothedam') {
+              return { color: '#0d47a1', weight: 4, fill: false, opacity: 0.95 };
+            }
+            // Neighbouring panchayats - warm orange complementary to party fills
+            return { color: '#e65100', weight: 2.5, fillColor: '#fff3e0', fillOpacity: 0.15, dashArray: '8 5', opacity: 0.9 };
+          },
+          onEachFeature: (f, layer) => {
+            layer.bindTooltip(f.properties.name + ' Panchayat', { sticky: true, direction: 'top' });
+          }
+        }).addTo(map);
+      })
+      .catch(e => console.error('Neighbors load error:', e));
+
+    window.navigateTo = function(lat, lng, label) {
+      window.open(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`, '_blank');
+    };
+
+    // Notes system
     const STORAGE_KEY = 'moothedam_notes_v1';
     let notes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
     let noteMarkers = [];
     let addPinMode = false;
     let tempMarker = null;
+
     function saveNotes() { localStorage.setItem(STORAGE_KEY, JSON.stringify(notes)); renderNotesList(); }
+
     function renderNoteMarkers() {
       noteMarkers.forEach(m => map.removeLayer(m)); noteMarkers = [];
       notes.forEach((n, idx) => {
-        const m = L.marker([n.lat, n.lng], { draggable: true, icon: L.divIcon({ className: '', html: `<div style="background:#c62828;color:white;width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.4)"><span style="transform:rotate(45deg);font-size:14px">📌</span></div>`, iconSize: [28, 28], iconAnchor: [14, 28] }) }).addTo(map);
+        const m = L.marker([n.lat, n.lng], {
+          draggable: true,
+          icon: L.divIcon({
+            className: '',
+            html: `<div style="background:#c62828;color:white;width:28px;height:28px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.4)"><span style="transform:rotate(45deg);font-size:14px">📌</span></div>`,
+            iconSize: [28, 28], iconAnchor: [14, 28]
+          })
+        }).addTo(map);
         m.bindPopup(`<strong>${n.title || 'Note'}</strong><br>${n.text || ''}<br><small>${n.lat.toFixed(5)}, ${n.lng.toFixed(5)}</small><br><button onclick="editNote(${idx})" style="margin-top:6px;padding:4px 8px">Edit</button> <button onclick="deleteNote(${idx})" style="margin-top:6px;padding:4px 8px;background:#c62828;color:white;border:none;border-radius:4px">Delete</button>`);
         m.on('dragend', (e) => { const pos = e.target.getLatLng(); notes[idx].lat = pos.lat; notes[idx].lng = pos.lng; saveNotes(); });
         noteMarkers.push(m);
       });
     }
+
     function renderNotesList() {
       const list = document.getElementById('notesList');
       if (notes.length === 0) { list.innerHTML = '<p style="color:#777;font-size:0.85rem">No notes yet. Use “Add Note/Pin”.</p>'; return; }
       list.innerHTML = notes.map((n, i) => `<div class="note-item"><div class="meta">${n.lat.toFixed(5)}, ${n.lng.toFixed(5)} · ${new Date(n.ts).toLocaleString()}</div><input type="text" value="${(n.title || '').replace(/"/g, '"')}" placeholder="Title" onchange="updateNoteTitle(${i}, this.value)" style="width:100%;margin-bottom:4px;padding:4px;border:1px solid #ccc;border-radius:4px" /><textarea onchange="updateNoteText(${i}, this.value)">${n.text || ''}</textarea><div class="note-actions"><button class="save-btn" onclick="flyToNote(${i})">Go to</button><button class="del-btn" onclick="deleteNote(${i})">Delete</button></div></div>`).join('');
     }
+
     window.updateNoteTitle = (i, v) => { notes[i].title = v; saveNotes(); };
     window.updateNoteText = (i, v) => { notes[i].text = v; saveNotes(); };
     window.flyToNote = (i) => { map.flyTo([notes[i].lat, notes[i].lng], 16); };
     window.deleteNote = (i) => { if (confirm('Delete this note?')) { notes.splice(i, 1); saveNotes(); renderNoteMarkers(); } };
     window.editNote = (i) => { document.getElementById('notesPanel').classList.add('open'); renderNotesList(); };
-    document.getElementById('btnAddPin').onclick = () => { addPinMode = !addPinMode; document.getElementById('btnAddPin').classList.toggle('active', addPinMode); document.getElementById('pinHint').style.display = addPinMode ? 'block' : 'none'; if (!addPinMode && tempMarker) { map.removeLayer(tempMarker); tempMarker = null; } };
-    map.on('click', (e) => { if (!addPinMode) return; if (tempMarker) map.removeLayer(tempMarker); tempMarker = L.marker(e.latlng, { draggable: true }).addTo(map); const title = prompt('Note title (optional):', ''); const text = prompt('Note text:', ''); notes.push({ lat: e.latlng.lat, lng: e.latlng.lng, title: title || 'Pin', text: text || '', ts: Date.now() }); saveNotes(); renderNoteMarkers(); addPinMode = false; document.getElementById('btnAddPin').classList.remove('active'); document.getElementById('pinHint').style.display = 'none'; if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; } });
-    document.getElementById('btnNotes').onclick = () => { document.getElementById('notesPanel').classList.toggle('open'); renderNotesList(); };
-    document.getElementById('btnExport').onclick = () => { const blob = new Blob([JSON.stringify(notes, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `moothedam_notes_${new Date().toISOString().slice(0,10)}.json`; a.click(); };
+
+    document.getElementById('btnAddPin').onclick = () => {
+      addPinMode = !addPinMode;
+      document.getElementById('btnAddPin').classList.toggle('active', addPinMode);
+      document.getElementById('pinHint').style.display = addPinMode ? 'block' : 'none';
+      if (!addPinMode && tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+    };
+
+    map.on('click', (e) => {
+      if (!addPinMode) return;
+      if (tempMarker) map.removeLayer(tempMarker);
+      tempMarker = L.marker(e.latlng, { draggable: true }).addTo(map);
+      const title = prompt('Note title (optional):', '');
+      const text = prompt('Note text:', '');
+      notes.push({ lat: e.latlng.lat, lng: e.latlng.lng, title: title || 'Pin', text: text || '', ts: Date.now() });
+      saveNotes(); renderNoteMarkers();
+      addPinMode = false;
+      document.getElementById('btnAddPin').classList.remove('active');
+      document.getElementById('pinHint').style.display = 'none';
+      if (tempMarker) { map.removeLayer(tempMarker); tempMarker = null; }
+    });
+
+    document.getElementById('btnNotes').onclick = () => {
+      document.getElementById('notesPanel').classList.toggle('open');
+      renderNotesList();
+    };
+
+    document.getElementById('btnExport').onclick = () => {
+      const blob = new Blob([JSON.stringify(notes, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `moothedam_notes_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+    };
+
     document.getElementById('btnImport').onclick = () => document.getElementById('importFile').click();
-    document.getElementById('importFile').onchange = (e) => { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = (ev) => { try { const imported = JSON.parse(ev.target.result); if (Array.isArray(imported)) { notes = imported; saveNotes(); renderNoteMarkers(); alert('Imported ' + notes.length + ' notes successfully!'); } else alert('Invalid file format'); } catch (err) { alert('Error reading file'); } }; reader.readAsText(file); };
+    document.getElementById('importFile').onchange = (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const imported = JSON.parse(ev.target.result);
+          if (Array.isArray(imported)) { notes = imported; saveNotes(); renderNoteMarkers(); alert('Imported ' + notes.length + ' notes!'); }
+          else alert('Invalid file');
+        } catch (err) { alert('Error reading file'); }
+      };
+      reader.readAsText(file);
+    };
+
     renderNoteMarkers(); renderNotesList();
     L.control.attribution({ position: 'bottomleft' }).addTo(map);
   </script>
